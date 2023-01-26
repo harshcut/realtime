@@ -38,6 +38,10 @@ function App() {
     channel.on('broadcast', { event: 'cursor-pos' }, ({ payload }: Payload<User>) => {
       if (!payload) return
       const { user_id, mouse_position } = payload
+
+      mouse_position.x = Math.min(mouse_position.x ?? 0, window.innerWidth - 30)
+      mouse_position.y = Math.min(mouse_position.y ?? 0, window.innerHeight - 30)
+
       setUsers((prev) => ({ ...prev, [user_id]: { user_id, mouse_position } }))
     })
 
