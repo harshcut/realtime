@@ -20,7 +20,7 @@ function App() {
 
   React.useEffect(() => {
     // create a channel with a unique name
-    const channel = supabase.channel('room-name')
+    const channel = supabase.channel('room-name', { config: { presence: { key: userId } } })
 
     const mouseEventHandler = (ev: MouseEvent) => {
       // broadcast client cursor position to the channel with user id
@@ -41,10 +41,29 @@ function App() {
       setUsers((prev) => ({ ...prev, [user_id]: { user_id, mouse_position } }))
     })
 
+    // add user to state when they join
+    channel.on('presence', { event: 'join' }, ({ newPresences }) => {
+      const newId: string = newPresences[0].user_id
+      setUsers((prev) => ({
+        ...prev,
+        [newId]: { user_id: newId, mouse_position: { x: null, y: null } },
+      }))
+    })
+
+    // remove user from state when they leave
+    channel.on('presence', { event: 'leave' }, ({ leftPresences }) => {
+      const leftId: string = leftPresences[0].user_id
+      setUsers((prev) => {
+        const { [leftId]: _, ...rest } = prev
+        return rest
+      })
+    })
+
     // subscribe registers your client with the server
     channel.subscribe((status) => {
       if (status === 'SUBSCRIBED') {
         window.addEventListener('mousemove', mouseEventHandler)
+        channel.track({ user_id: userId })
       }
     })
 
