@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { supabase } from '../utils'
 import { Cursor, MousePosition } from './components'
+import styles from './App.module.css'
 
 interface User {
   user_id: string
@@ -17,10 +18,21 @@ const userId = crypto.randomUUID()
 
 function App() {
   const [users, setUsers] = React.useState<Record<string, User>>({})
+  const [latency, setLatency] = React.useState<number>(0)
 
   React.useEffect(() => {
     // create a channel with a unique name
-    const channel = supabase.channel('room-name', { config: { presence: { key: userId } } })
+    const channel = supabase.channel('room-name', {
+      config: { presence: { key: userId }, broadcast: { ack: true } },
+    })
+
+    // calculate latency every few seconds
+    const calcLatency = setInterval(async () => {
+      const begin = performance.now()
+      await channel.send({ type: 'broadcast', event: 'latency' })
+      const end = performance.now()
+      setLatency(end - begin)
+    }, 3000)
 
     const mouseEventHandler = (ev: MouseEvent) => {
       // broadcast client cursor position to the channel with user id
@@ -72,6 +84,7 @@ function App() {
     })
 
     return () => {
+      clearInterval(calcLatency)
       window.removeEventListener('mousemove', mouseEventHandler)
       supabase.removeChannel(channel)
     }
@@ -84,6 +97,7 @@ function App() {
         acc.push(<Cursor key={user_id} mousePosition={mouse_position} />)
         return acc
       }, [] as React.ReactElement[])}
+      <span className={styles.latency}>{latency.toFixed(2)}ms</span>
     </>
   )
 }
